@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Validate commit message format with Planner-specific types
+commit_regex='^(feat|fix|docs|style|refactor|test|chore|planner|graph)(\(.+\))?: .{1,50}'
+
+if ! grep -qE "$commit_regex" "$1"; then
+    echo "Invalid commit message format!"
+    echo "Format: type(scope): description"
+    echo "Types: feat, fix, docs, style, refactor, test, chore, planner, graph"
+    echo "Examples:"
+    echo "  feat(planner): add task creation functionality"
+    echo "  fix(graph): resolve authentication token refresh"
+    echo "  planner(api): implement plan synchronization"
+    exit 1
+fi

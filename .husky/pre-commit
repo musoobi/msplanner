@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run linting and formatting
+npx lint-staged
+
+# Check for sensitive Microsoft 365 credentials
+if grep -r "client_secret\|client-id\|tenant-id" --include="*.js" --include="*.json" --include="*.env*" . | grep -v node_modules | grep -v .git; then
+    echo "❌ Potential Microsoft 365 credentials detected in code!"
+    echo "Please remove or move to environment variables."
+    exit 1
+fi
+
+# Check for hardcoded Microsoft Graph endpoints
+if grep -r "graph.microsoft.com" --include="*.js" --include="*.json" . | grep -v node_modules | grep -v .git; then
+    echo "⚠️  Hardcoded Microsoft Graph endpoints detected."
+    echo "Consider using environment variables for API endpoints."
+fi
