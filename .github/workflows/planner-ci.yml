@@ -1,0 +1,107 @@
+name: Microsoft Planner CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [16.x, 18.x, 20.x]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Run tests
+        run: npm run test:coverage
+        env:
+          NODE_ENV: test
+
+      - name: Test Microsoft Graph API connectivity
+        run: npm run test:planner
+        env:
+          MICROSOFT_GRAPH_ENDPOINT: https://graph.microsoft.com/v1.0
+          # Note: Use test credentials in CI environment
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/lcov.info
+
+  microsoft-graph-test:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test Microsoft Graph API integration
+        run: npm run test:planner
+        env:
+          MICROSOFT_GRAPH_ENDPOINT: https://graph.microsoft.com/v1.0
+          # Add your test Microsoft 365 tenant credentials
+          # MICROSOFT_CLIENT_ID: ${{ secrets.MICROSOFT_CLIENT_ID }}
+          # MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
+          # MICROSOFT_TENANT_ID: ${{ secrets.MICROSOFT_TENANT_ID }}
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [test, microsoft-graph-test]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Planner integration
+        run: npm run build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: planner-integration-build
+          path: dist/
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [test, microsoft-graph-test, build]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Deploy Microsoft Planner integration
+        run: echo "Deploy to production environment"
+        # Add your deployment commands here
+        # Consider Microsoft 365 tenant-specific deployment
